@@ -1,0 +1,63 @@
+import pandas as pd
+import json
+from sqlalchemy import create_engine, text
+from datetime import datetime
+
+def get_db_engine(conn_string: str):
+    """Return a SQLAlchemy engine for any DB given a connection string."""
+    return create_engine(conn_string)
+
+def load_config(config_file: str) -> pd.DataFrame:
+    """Load ETL config JSON file into a DataFrame."""
+    with open(config_file, "r") as f:
+        config = json.load(f)
+    return pd.DataFrame(config["tasks"]) 
+
+def run_etl_task(row, src_engine, tgt_engine):
+    """Execute one ETL task based on JSON config row."""
+    print(f"Running Task {row['Task id']}...")
+
+    # Extract data
+    df = pd.read_sql(text(row['Source query']), src_engine)
+
+    # Staging
+    if row.get('Staging schema') and row.get('Staging table/folder'):
+        staging_table = f"{row['Staging schema']}.{row['Staging table/folder']}"
+        df.to_sql(row['Staging table/folder'], src_engine, schema=row['Staging schema'],
+                  if_exists='replace', index=False)
+        print(f"Staged {len(df)} rows into {staging_table}")
+
+    # Transformations via stored procedure (if defined)
+    if row.get('Stored Procedure'):
+        with tgt_engine.begin() as conn:
+            conn.execute(text(f"CALL {row['Stored Procedure']}()"))
+
+    # Load into target
+    target_table = f"{row['Target schema']}.{row['Target table/folder']}"
+    df.to_sql(row['Target table/folder'], tgt_engine, schema=row['Target schema'],
+              if_exists='append', index=False)
+    print(f"Loaded {len(df)} rows into {target_table}")
+
+    return {
+        "Task id": row['Task id'],
+        "Last Updated Date": datetime.utcnow().isoformat()
+    }
+
+def run_all_tasks(config_file: str):
+    """Main driver: read config file, loop tasks, run ETL."""
+    config_df = load_config(config_file)
+
+    # DB connections from config (global section)
+    with open(config_file, "r") as f:
+        config = json.load(f)
+
+    src_engine = get_db_engine(config["connections"]["source"])
+    tgt_engine = get_db_engine(config["connections"]["target"])
+
+    results = []
+    for _, row in config_df.iterrows():
+        res = run_etl_task(row, src_engine, tgt_engine)
+        results.append(res)
+
+    return pd.DataFrame(results)
+

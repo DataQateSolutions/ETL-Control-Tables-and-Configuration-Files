@@ -1,0 +1,57 @@
+import pandas as pd
+from sqlalchemy import create_engine, text
+from datetime import datetime
+
+def get_db_engine(conn_string: str):
+    """Return a SQLAlchemy engine for any DB given a connection string."""
+    return create_engine(conn_string)
+
+def fetch_control_table(engine, control_table: str) -> pd.DataFrame:
+    """Load control table into a DataFrame."""
+    query = f"SELECT * FROM {control_table}"
+    return pd.read_sql(query, engine)
+
+def run_etl_task(row, src_engine, tgt_engine):
+    """Execute one ETL task based on control table row."""
+    print(f"Running Task {row['Task id']}...")
+
+    # Extract data
+    df = pd.read_sql(text(row['Source query']), src_engine)
+
+    # Staging
+    if row['Staging schema'] and row['Staging table/folder']:
+        staging_table = f"{row['Staging schema']}.{row['Staging table/folder']}"
+        df.to_sql(row['Staging table/folder'], src_engine, schema=row['Staging schema'],
+                  if_exists='replace', index=False)
+        print(f"Staged {len(df)} rows into {staging_table}")
+
+    # Transformations via stored procedure
+    if row['Stored Procedure']:
+        with tgt_engine.begin() as conn:
+            conn.execute(text(f"CALL {row['Stored Procedure']}()"))
+
+    # Load into target
+    target_table = f"{row['Target schema']}.{row['Target table/folder']}"
+    df.to_sql(row['Target table/folder'], tgt_engine, schema=row['Target schema'],
+              if_exists='append', index=False)
+    print(f"Loaded {len(df)} rows into {target_table}")
+
+    return {
+        "Task id": row['Task id'],
+        "Last Updated Date": datetime.utcnow()
+    }
+
+def run_all_tasks(control_conn: str, source_conn: str, target_conn: str, control_table: str):
+    """Main driver: fetch control table, loop tasks, run ETL."""
+    control_engine = get_db_engine(control_conn)
+    src_engine = get_db_engine(source_conn)
+    tgt_engine = get_db_engine(target_conn)
+
+    control_df = fetch_control_table(control_engine, control_table)
+
+    results = []
+    for _, row in control_df.iterrows():
+        res = run_etl_task(row, src_engine, tgt_engine)
+        results.append(res)
+
+    return pd.DataFrame(results)
