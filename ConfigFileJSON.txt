@@ -1,0 +1,21 @@
+{
+  "connections": {
+    "source": "string",   // SQLAlchemy connection string for source DB
+    "target": "string"    // SQLAlchemy connection string for target DB
+  },
+  "tasks": [
+    {
+      "Task id": "integer",                  // Unique identifier for the task
+      "Table Type": "string",                // e.g. "File - Dimension", "Table - Fact"
+      "Data source": "string",               // Source system name
+      "Staging schema": "string|null",       // Schema used for staging (optional)
+      "Staging table/folder": "string|null", // Staging table or folder (optional)
+      "Source query": "string",              // SQL or query to extract data
+      "Target schema": "string",             // Schema for final load
+      "Target table/folder": "string",       // Target table or folder name
+      "Target Date": "string (YYYY-MM-DD)",  // Effective/partition date
+      "Last Updated Date": "string (ISO8601)", // Timestamp of last update
+      "Stored Procedure": "string|null"      // Optional procedure for transformation
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+CREATE TABLE etl_control (
+    Task_id            INT PRIMARY KEY,              -- Unique identifier for each ETL task
+    Table_Type         VARCHAR(100) NOT NULL,        -- e.g., File - Dimension, Table - Fact
+    Data_source        VARCHAR(200) NOT NULL,        -- Source system name
+    Staging_schema     VARCHAR(100),                 -- Schema for staging
+    Staging_table      VARCHAR(200),                 -- Staging table or folder
+    Source_query       TEXT NOT NULL,                -- SQL/query string
+    Target_schema      VARCHAR(100) NOT NULL,        -- Schema for target
+    Target_table       VARCHAR(200) NOT NULL,        -- Target table/folder
+    Target_Date        DATE,                         -- Partition or effective date
+    Last_Updated_Date  TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Auto updated timestamp
+    Stored_Procedure   VARCHAR(200)                  -- Procedure name for transformations
+);
