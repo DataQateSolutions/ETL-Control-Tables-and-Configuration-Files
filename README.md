@@ -4,6 +4,7 @@ This Repository Shows DDL SQL for a Control Table and JSON for a Configuration F
 The rationale behind the use of these in ETL scripts is simple - it helps organize the code and ensures easier maintainability and scalability, when compared with those ETL/ELTs that are done without them. 
 
 
+
 ### The following assumptions were made:
 
 1. A full refresh was assumed for both the config file and control table scenarios
